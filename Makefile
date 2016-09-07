@@ -13,9 +13,13 @@ CXXFLAGS      += -g
 
 bins          := podofo-flatform
 
+LDLIBS += -lpodofo -lfreetype -lfontconfig -ljpeg -lcrypto -lidn -lz
 ifeq ($(filter Darwin,$(distHost)),)
 LDLIBS +=  -lpthread
 endif
+
+libSearchPath ?= $(patsubst -L%,%,$(filter -L%, $(LDFLAGS)))
+
 
 all:: podofo-flatform
 
@@ -23,7 +27,6 @@ install:: $(bins)
 	$(if $^,$(installDirs) $(DESTDIR)$(binDir))
 	$(if $^,$(installBins) $^ $(DESTDIR)$(binDir))
 
-podofo-flatform: podofo-flatform.cc \
-    -lpodofo -lfreetype -lfontconfig -ljpeg -lcrypto -lidn -lz
+podofo-flatform: podofo-flatform.cc
 
-vpath %.cc 		$(srcDir)/src
+vpath %.cc      $(srcDir)/src

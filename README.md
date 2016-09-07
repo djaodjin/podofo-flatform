@@ -26,7 +26,8 @@ Compile podofo-flatform
     $ cd ~/workspace/reps
     $ git clone https://github.com/djaodjin/podofo-flatform.git
     $ cd podofo-flatform
-    $ make
+    $ make CPPFLAGS="-I$HOME/workspace/include" \
+        LDFLAGS="-L$HOME/workspace/lib -L/opt/local/lib"
 
 Example usage
 
