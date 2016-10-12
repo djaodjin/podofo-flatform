@@ -9,7 +9,7 @@ binDir        ?= $(installTop)/bin
 installBins   ?= /usr/bin/install -s -p -m 755
 installDirs   ?= /usr/bin/install -d
 
-CXXFLAGS      += -g
+CXXFLAGS      += -g -std=c++11
 
 bins          := podofo-flatform
 

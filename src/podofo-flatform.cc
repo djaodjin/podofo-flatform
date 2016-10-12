@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Djaodjin Inc.
+/* Copyright (c) 2016, Djaodjin Inc.
    All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -103,25 +103,26 @@ fill_text_field( PdfTextField& field,
 #endif
 
     // PdfTextField::GetFieldName()
-    const char* field_name = "";
+    const char* field_name_cstr = "";
     if( field.GetFieldName().IsValid() ) {
-        field_name = field.GetFieldName().GetString();
+        field_name_cstr = field.GetFieldName().GetString();
     } else {
         PdfObject *obj = field.GetFieldObject();
         if( obj->GetDictionary().HasKey(PdfName("Parent")) ) {
             const PdfReference& ref = obj->GetDictionary().GetKey(
                 PdfName("Parent"))->GetReference();
             obj = obj->GetOwner()->GetObject(ref);
-            field_name = obj->GetDictionary().GetKey(
+            field_name_cstr = obj->GetDictionary().GetKey(
                 PdfName("T"))->GetString().GetString();
         }
     }
 
+    std::string field_name(field_name_cstr);
     std::map<std::string, std::string>::const_iterator found
-        = fills.find(std::string(field_name));
+        = fills.find(field_name);
     if( found != fills.end() ) {
 #if PRINT_DEBUG_MSG
-        std::cerr << "Set '"<< field_name << "' to '" << found->second << "'\n";
+        std::cerr << "Set text-input '"<< field_name << "' to '" << found->second << "'\n";
 #endif
         // PdfTextField::SetText()
         PdfName key = field.IsRichText() ? PdfName("RV") : PdfName("V");
@@ -183,32 +184,109 @@ void flat_text_field( PdfAnnotation* annot,
     const PdfRect& rect = annot->GetRect();
 
     // PdfTextField::GetFieldName() for Annotation
-    const char* field_name = "";
+    const char* field_name_cstr = "";
     PdfString pdf_field_name;
     PdfObject *obj = annot->GetObject();
     if( obj->GetDictionary().HasKey(PdfName("T")) ) {
         pdf_field_name = obj->GetDictionary().GetKey(PdfName("T"))->GetString();
     }
     if( pdf_field_name.IsValid() ) {
-        field_name = pdf_field_name.GetString();
+        field_name_cstr = pdf_field_name.GetString();
     } else {
         if( obj->GetDictionary().HasKey(PdfName("Parent")) ) {
             const PdfReference& ref = obj->GetDictionary().GetKey(
                 PdfName("Parent"))->GetReference();
             obj = obj->GetOwner()->GetObject(ref);
-            field_name = obj->GetDictionary().GetKey(
+            field_name_cstr = obj->GetDictionary().GetKey(
                 PdfName("T"))->GetString().GetString();
         }
     }
 
+    std::string field_name(field_name_cstr);
     std::map<std::string, std::string>::const_iterator found
-        = fills.find(std::string(field_name));
+        = fills.find(field_name);
     if( found != fills.end() ) {
 #if PRINT_DEBUG_MSG
-        std::cerr << "Set '"<< field_name << "' to '" << found->second << "'\n";
+        std::cerr << "Set text-input '"<< field_name << "' to '" << found->second << "'\n";
 #endif
         painter.DrawText(
             rect.GetLeft(), rect.GetBottom() + 1, found->second.c_str());
+#if PRINT_DEBUG_MSG
+    } else {
+        std::cerr << "warning: no value for field '"<< field_name << "'\n";
+#endif
+    }
+}
+
+
+/** Draw an checkbox field (*annot*) value taken from *fills*, a map indexed by
+    field names, at the position the input field appears in the document.
+
+    In some PDF files the field_name is not directly associated to the input
+    object ("T") but to its "Parent".
+*/
+void flat_checkbox_field( PdfAnnotation* annot,
+    const std::map<std::string, std::string>& fills,
+    PdfPainter& painter,
+    PdfDocument& doc ) {
+//    std::string font_family("Arial Unicode MS");
+    std::string font_family("Zapf Dingbats");
+    int font_size = 12;
+
+    if( annot->GetObject()->GetDictionary().HasKey(PdfName("DA")) ) {
+        PdfObject *da_obj
+            = annot->GetObject()->GetDictionary().GetKey(PdfName("DA"));
+        std::string da_value(da_obj->GetString().GetString());
+        size_t start = da_value.find('/');
+        size_t end = da_value.find("Tf");
+        for( --end; end > 0 && (
+                da_value[end] == ' ' || isdigit(da_value[end])); --end ) {}
+        std::string font_family = da_value.substr(start + 1, end - start);
+        font_size = atoi(da_value.substr(end + 1).c_str());
+#if PRINT_DEBUG_MSG
+        std::cerr << "field DA: " << da_obj->GetString().GetString()
+                  << std::endl;
+        std::cerr << "\tfont-family: " << font_family
+                  << ", font-size: " << font_size
+                  << std::endl;
+#endif
+    }
+    const PdfEncoding* pEncoding = new PdfIdentityEncoding();
+    painter.SetFont(doc.CreateFont(font_family.c_str(), false, pEncoding));
+    painter.GetFont()->SetFontSize(font_size);
+    const PdfRect& rect = annot->GetRect();
+    // PdfTextField::GetFieldName() for Annotation
+    const char* field_name_cstr = "";
+    PdfString pdf_field_name;
+    PdfObject *obj = annot->GetObject();
+    if( obj->GetDictionary().HasKey(PdfName("T")) ) {
+        pdf_field_name = obj->GetDictionary().GetKey(PdfName("T"))->GetString();
+    }
+    if( pdf_field_name.IsValid() ) {
+        field_name_cstr = pdf_field_name.GetString();
+    } else {
+        if( obj->GetDictionary().HasKey(PdfName("Parent")) ) {
+            const PdfReference& ref = obj->GetDictionary().GetKey(
+                PdfName("Parent"))->GetReference();
+            obj = obj->GetOwner()->GetObject(ref);
+            field_name_cstr = obj->GetDictionary().GetKey(
+                PdfName("T"))->GetString().GetString();
+        }
+    }
+
+    std::string field_name(field_name_cstr);
+    std::map<std::string, std::string>::const_iterator found
+        = fills.find(field_name);
+    if( found != fills.end() ) {
+        bool checked = atoi(found->second.c_str());
+#if PRINT_DEBUG_MSG
+        std::cerr << "Set checkbox '"<< field_name << "' to " << checked << "\n";
+#endif
+        if( checked ) {
+            painter.DrawText(
+                rect.GetLeft(), rect.GetBottom() + 1,
+                PdfString(reinterpret_cast<const pdf_utf8*>("\u2713")));
+        }
 #if PRINT_DEBUG_MSG
     } else {
         std::cerr << "warning: no value for field '"<< field_name << "'\n";
@@ -226,6 +304,9 @@ flat_form( const std::string& output_path, const std::string& input_path,
 
     int nb_pages = doc.GetPageCount();
     for( int i = 0; i < nb_pages; ++i ) {
+#if PRINT_DEBUG_MSG
+        std::cerr << "Page " << i << "\n";
+#endif
         PdfPage *page = doc.GetPage(i);
         painter.SetPage(page);
 
@@ -233,12 +314,21 @@ flat_form( const std::string& output_path, const std::string& input_path,
         for( int n = 0; n < nb_fields; ++n ) {
             PdfField field = page->GetField(n);
             EPdfField eType = field.GetType();
-
+#if PRINT_DEBUG_MSG
+        std::cerr << "Field " << n << " of type " << eType << "\n";
+#endif
             switch( eType ) {
                case ePdfField_TextField:
                 {
                     PdfTextField text(field);
                     flat_text_field(
+                        page->GetAnnotation(n), fills, painter, doc);
+                    break;
+                }
+               case ePdfField_CheckBox:
+                {
+                    PdfCheckBox checkbox(field);
+                    flat_checkbox_field(
                         page->GetAnnotation(n), fills, painter, doc);
                     break;
                 }
