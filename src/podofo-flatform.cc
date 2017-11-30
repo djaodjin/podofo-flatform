@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Djaodjin Inc.
+/* Copyright (c) 2017, Djaodjin Inc.
    All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -353,14 +353,74 @@ flat_form( const std::string& output_path, const std::string& input_path,
 }
 
 
+/** Print a list of fields that could be set through --fill command
+    line options.
+ */
+void
+print_fields( const std::string& input_path )
+{
+    const char *sep = "";
+    PdfMemDocument doc(input_path.c_str());
+
+    int nb_pages = doc.GetPageCount();
+    for( int i = 0; i < nb_pages; ++i ) {
+#if PRINT_DEBUG_MSG
+        std::cerr << "Page " << i << "\n";
+#endif
+        PdfPage *page = doc.GetPage(i);
+        int nb_fields = page->GetNumFields();
+        for( int n = 0; n < nb_fields; ++n ) {
+            PdfField field = page->GetField(n);
+            EPdfField eType = field.GetType();
+#if PRINT_DEBUG_MSG
+            std::cerr << "Field " << n << " of type " << eType << "\n";
+#endif
+            PdfString pdf_field_name;
+            const char* field_name_cstr = "";
+            PdfAnnotation* annot = page->GetAnnotation(n);
+            PdfObject *obj = annot->GetObject();
+            if( obj->GetDictionary().HasKey(PdfName("T")) ) {
+                pdf_field_name = obj->GetDictionary().GetKey(
+                    PdfName("T"))->GetString();
+            }
+            if( pdf_field_name.IsValid() ) {
+                field_name_cstr = pdf_field_name.GetString();
+            } else {
+                if( obj->GetDictionary().HasKey(PdfName("Parent")) ) {
+                    const PdfReference& ref = obj->GetDictionary().GetKey(
+                        PdfName("Parent"))->GetReference();
+                    obj = obj->GetOwner()->GetObject(ref);
+                    field_name_cstr = obj->GetDictionary().GetKey(
+                        PdfName("T"))->GetString().GetString();
+                }
+            }
+            switch( eType ) {
+            case ePdfField_TextField:
+            case ePdfField_CheckBox:
+                {
+                    std::cout << sep << '"' << field_name_cstr << '"';
+                    sep = ", ";
+                    break;
+                }
+            default:
+                break;
+            }
+        }
+    }
+    std::cout << std::endl;
+}
+
+
 int main( int argc, char* argv[] )
 {
     int idx = 1;
+    bool has_fills = false;
     std::string input_path, output_path;
     std::map<std::string, std::string> fills;
 
     while( idx < argc ) {
         if( strncmp(argv[idx], "--fill", 6) == 0 ) {
+            has_fills = true;
             ++idx;
             if( idx >= argc ) {
                 std::cerr << "missing field_name=field_value after --fill\n";
@@ -382,13 +442,16 @@ int main( int argc, char* argv[] )
         ++idx;
     }
 
-    if( input_path.empty() || output_path.empty() ) {
+    if( input_path.empty() || (has_fills && output_path.empty()) ) {
         std::cout << "Usage: " << argv[0]
             << " [--fill field_name=field_value] input_file output_file\n";
         std::cout << "Fill out an existing form and save it to a PDF file\n";
         return 1;
     }
-
-    flat_form(output_path, input_path, fills);
+    if( has_fills ) {
+        flat_form(output_path, input_path, fills);
+    } else {
+        print_fields(input_path);
+    }
     return 0;
 }
