@@ -97,7 +97,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %files libs
 %doc AUTHORS COPYING.LIB ChangeLog FAQ.html README.html TODO
 %{_libdir}/*.so.*
-%{_libdir}/pkgconfig/libpodofo-0.pc
+%{_libdir}/pkgconfig/libpodofo.pc
 
 %files devel
 %doc doc/html
