@@ -1,7 +1,7 @@
-# Hacky unofficial spec file to generate RPMs for podofo 0.9.4
+# Hacky unofficial spec file to generate RPMs for podofo 0.9.7
 
 Name:           podofo
-Version:        0.9.4
+Version:        0.9.7
 Release:        18%{?dist}
 Summary:        Tools and libraries to work with the PDF file format
 
@@ -97,6 +97,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %files libs
 %doc AUTHORS COPYING.LIB ChangeLog FAQ.html README.html TODO
 %{_libdir}/*.so.*
+%{_libdir}/pkgconfig/libpodofo-0.pc
 
 %files devel
 %doc doc/html
